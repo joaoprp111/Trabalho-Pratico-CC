@@ -8,6 +8,15 @@ public class PDU {
     private int packetId;
     private byte[] data;
 
+    public PDU() {
+        this.type = -1;
+        this.transferId = -1;
+        this.checksum = -1;
+        this.offset = -1;
+        this.packetId = -1;
+        this.data = null;
+    }
+
     public PDU(int type, int transferId, int checksum, int offset, int packetId, byte[] data) {
         this.type = type;
         this.transferId = transferId;

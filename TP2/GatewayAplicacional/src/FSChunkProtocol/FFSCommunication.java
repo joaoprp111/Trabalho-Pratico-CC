@@ -29,9 +29,16 @@ public class FFSCommunication implements Runnable{
                 DatagramPacket packet = new DatagramPacket(buffer, 4*1024);
                 socket.receive(packet);
                 byte[] data = packet.getData();
-                int typeInt = ByteBuffer.wrap(data,0,4).getInt();
-                System.out.println("Data length:" + data.length);
-                System.out.println("Type:" + typeInt);
+                int size = ByteBuffer.wrap(data,0,4).getInt();
+                int type = ByteBuffer.wrap(data,4,4).getInt();
+                byte[] content = new byte[size-8];
+                System.arraycopy(data,8,content,0,size-8);
+
+                String contentstr = new String(content);
+                System.out.println("String size " + content.length);
+                System.out.println("Size:" + size);
+                System.out.println("Type:" + type);
+                System.out.println("Message: " +  contentstr);
                 running = false;
             }
         } catch(IOException e){
