@@ -1,6 +1,6 @@
 package FSChunkProtocol;
 
-public class PDU {
+public class PDU{
     private int type;
     private int transferId;
     private int checksum;

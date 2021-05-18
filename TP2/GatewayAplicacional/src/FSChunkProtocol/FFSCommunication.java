@@ -9,12 +9,11 @@ import java.nio.ByteBuffer;
 public class FFSCommunication implements Runnable{
     private DatagramSocket socket;
     private boolean running;
-    private PDU packet;
     private byte[] buffer = new byte[4*1024];
 
     public FFSCommunication(){
         try{
-            socket = new DatagramSocket(4472);
+            socket = new DatagramSocket(80);
         } catch(SocketException se){
             se.printStackTrace();
         }
