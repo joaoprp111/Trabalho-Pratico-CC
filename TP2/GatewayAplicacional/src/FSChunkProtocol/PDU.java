@@ -1,5 +1,7 @@
 package FSChunkProtocol;
 
+import java.net.DatagramPacket;
+
 public class PDU{
     private int type;
     private int transferId;
@@ -17,13 +19,13 @@ public class PDU{
         this.data = null;
     }
 
-    public PDU(int type, int transferId, int checksum, int offset, int packetId, byte[] data) {
+    public PDU(int type, int transferId, int checksum, int offset, int packetId, DatagramPacket data) {
         this.type = type;
         this.transferId = transferId;
         this.checksum = checksum;
         this.offset = offset;
         this.packetId = packetId;
-        this.data = data;
+        this.data = null;
     }
 
     public int getType() {
