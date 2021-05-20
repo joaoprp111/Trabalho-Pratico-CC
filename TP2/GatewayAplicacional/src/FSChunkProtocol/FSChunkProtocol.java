@@ -30,9 +30,9 @@ public class FSChunkProtocol{
             long elapsedTime = currentTime - lastTime;
             double timeSeconds = (double) elapsedTime / 1000000000;
 
-            if(timeSeconds > 2.0) {
+            if(timeSeconds > 2.5) {
                 sendPacket(s, data, ip, destPort);
-                System.out.println("Enviado!");
+                System.out.println("> FFS: Beacon enviada!");
                 lastTime = System.nanoTime();
             }
         }
@@ -47,7 +47,7 @@ public class FSChunkProtocol{
 
         try {
             s.receive(pckt);
-            System.out.println("Recebido no Gateway!");
+            System.out.println("> Gw: beacon recebida da porta " + pckt.getPort());
         } catch(IOException e){
             e.printStackTrace();
         }
@@ -57,24 +57,25 @@ public class FSChunkProtocol{
         res.setType(type);
 
         // Tratar do resto do conteúdo
-        byte[] separator = "-".getBytes();
-        byte[] srcIp = pckt.getAddress().getAddress();
-        int srcPort = pckt.getPort();
-        ByteBuffer bb = ByteBuffer.allocate(4);
-        bb.putInt(srcPort);
-        byte[] srcPortArray = bb.array();
+        if(type == 1){
+            // Beacon
 
-        int finalSize = (packetSize > 4) ? (srcIp.length + 1 + 4 + 1 + packetSize - 4) : (srcIp.length + 1 + 4);
-        byte[] restData = new byte[finalSize];
-        System.arraycopy(srcIp,0,restData,0,srcIp.length);
-        System.arraycopy(separator,0,restData,srcIp.length,1);
-        System.out.println("Tamanho do ip em bytes: " + srcIp.length);
-        System.arraycopy(srcPortArray,0,restData,srcIp.length+1,4);
-        if(packetSize > 4) {
-            System.arraycopy(separator, 0, restData, srcIp.length + 1 + 4, 1);
-            System.arraycopy(data, 4, restData, srcIp.length + 1 + 4 + 1, packetSize - 4);
+            // Ler porta
+           int srcPort = pckt.getPort();
+           ByteBuffer bb = ByteBuffer.allocate(4);
+           bb.putInt(srcPort);
+           byte[] srcPortArr = bb.array();
+
+           // Ler Ip
+           byte[] srcIp = pckt.getAddress().getAddress();
+
+           // Preencher array
+           byte[] pduData = new byte[packetSize-4+4+srcIp.length];
+           System.arraycopy(srcPortArr,0,pduData,0,4);
+           System.arraycopy(srcIp,0,pduData,4,srcIp.length);
+
+           res.setData(pduData);
         }
-        res.setData(restData);
 
         return res;
     }

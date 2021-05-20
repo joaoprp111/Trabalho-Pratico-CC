@@ -5,61 +5,84 @@ import FSChunkProtocol.PDU;
 
 import java.io.UnsupportedEncodingException;
 import java.net.DatagramSocket;
+import java.net.InetAddress;
 import java.nio.ByteBuffer;
-import java.util.HashMap;
-import java.util.Map;
+import java.rmi.UnknownHostException;
+import java.util.*;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class HttpGw {
     private DatagramSocket s;
-    private Map<String,Connection> connections;
+    private Map<String,Connection> connections; // Chave -> porta + "-" + ip
+    private Lock l;
+    private final long _10e9 = 1000000000;
 
     public HttpGw() {
         try {
             this.s = new DatagramSocket(4475);
             this.connections = new HashMap<>();
+            this.l = new ReentrantLock();
         } catch(Exception e){
             e.printStackTrace();
         }
     }
 
-    private void registerServer(PDU p){
+    private void manageServer(PDU p){
+        byte[] data = p.getData();
+        int size = data.length;
+        int port = ByteBuffer.wrap(data,0,4).getInt();
+        byte[] ipArr = new byte[size-4];
+        System.arraycopy(data,4,ipArr,0,size-4);
+        try {
+            InetAddress ip = InetAddress.getByAddress(ipArr);
+
+            StringBuilder sb = new StringBuilder(String.valueOf(port));
+            sb.append("-");
+            sb.append(ip.toString());
+            String key = sb.toString();
+
+            try {
+                l.lock();
+                if (!connections.containsKey(key)) {
+                    Connection conn = new Connection(ip, port);
+                    connections.put(key, conn);
+                    System.out.println("> Gw: Servidor com a porta " + port + " e ip " + ip + " está conectado!");
+                } else {
+                    double nextBeaconSeconds = (double) System.nanoTime() / _10e9;
+                    Connection c = connections.get(key);
+                    try{
+                        c.lock();
+                        c.setLastBeaconSeconds(nextBeaconSeconds);
+                    } finally {
+                        c.unlock();
+                    }
+                }
+            } finally {
+                l.unlock();
+            }
+        } catch(Exception e){
+            e.printStackTrace();
+        }
     }
 
-    public void runGateway(){
+    public void runGateway() {
+        // Thread que recebe pacotes
         new Thread(() -> {
-            while(true) {
+            while (true) {
                 PDU p = FSChunkProtocol.receivePacket(s);
 
                 int type = p.getType();
-                /*byte[] data = p.getData();
-                System.out.println(type);
-                System.out.println(data.toString());*/
-                switch(type){
+                switch (type) {
                     case 1:
-                        registerServer(p);
+                        manageServer(p);
+                        break;
+                    default:
+                        break;
                 }
             }
         }).start();
     }
-
-    /*try {
-        DatagramSocket s = new DatagramSocket(80);
-
-        byte[] receber = new byte[1924];
-
-        DatagramPacket pedido = new DatagramPacket(receber, receber.length);
-        s.receive(pedido);
-
-        int i = 0;
-        StringBuilder pedidoStr = new StringBuilder();
-        while(receber[i] != 0){
-            pedidoStr.append((char) receber[i]);
-            i++;
-        }
-        System.out.println("Recebido do FFS.FFS: " + pedidoStr);
-    } catch(Exception e){
-        e.printStackTrace();
-    }*/
 
     public static void main(String[] args){
         HttpGw gw = new HttpGw();
