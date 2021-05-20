@@ -31,6 +31,8 @@ public class FFS {
         new Thread(() -> {
             FSChunkProtocol.sendBeacons(s,ip,destPort);
         }).start();
+
+        FSChunkProtocol.receivePacket(s);
     }
 
     public static void main(String[] args) {
