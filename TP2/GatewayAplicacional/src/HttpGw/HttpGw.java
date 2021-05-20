@@ -26,7 +26,7 @@ public class HttpGw {
 
     public HttpGw() {
         try {
-            this.s = new DatagramSocket(4475);
+            this.s = new DatagramSocket(8080);
             this.connections = new HashMap<>();
             this.l = new ReentrantLock();
             this.ss = new ServerSocket(8080);

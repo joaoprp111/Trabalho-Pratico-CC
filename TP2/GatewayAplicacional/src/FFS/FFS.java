@@ -19,7 +19,7 @@ public class FFS {
         try{
             s = new DatagramSocket();
             ip = InetAddress.getLocalHost();
-            destPort = 4475;
+            destPort = 8080;
         } catch(Exception e){
             e.printStackTrace();
         }
