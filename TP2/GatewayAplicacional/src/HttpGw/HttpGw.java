@@ -3,9 +3,14 @@ package HttpGw;
 import FSChunkProtocol.FSChunkProtocol;
 import FSChunkProtocol.PDU;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.rmi.UnknownHostException;
 import java.util.*;
@@ -14,6 +19,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 public class HttpGw {
     private DatagramSocket s;
+    private ServerSocket ss;
     private Map<String,Connection> connections; // Chave -> porta + "-" + ip
     private Lock l;
     private final long _10e9 = 1000000000;
@@ -23,6 +29,7 @@ public class HttpGw {
             this.s = new DatagramSocket(4475);
             this.connections = new HashMap<>();
             this.l = new ReentrantLock();
+            this.ss = new ServerSocket(8080);
         } catch(Exception e){
             e.printStackTrace();
         }
@@ -66,8 +73,7 @@ public class HttpGw {
         }
     }
 
-    public void runGateway() {
-        // Thread que recebe pacotes
+    public void receiveFFS(){
         new Thread(() -> {
             while (true) {
                 PDU p = FSChunkProtocol.receivePacket(s);
@@ -82,6 +88,30 @@ public class HttpGw {
                 }
             }
         }).start();
+    }
+
+    public void receiveClients(){
+        // Thread que aceita HTTP Requests dos clientes
+        new Thread(() -> {
+            try {
+                while (true) {
+                    Socket socket = ss.accept();
+                    BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+
+                    String input;
+                    while((input = in.readLine()) != null)
+                        System.out.println(input);
+                }
+            } catch(IOException e){
+                e.printStackTrace();
+            }
+        }).start();
+    }
+
+    public void runGateway() {
+        receiveFFS();
+
+        receiveClients();
     }
 
     public static void main(String[] args){
