@@ -2,19 +2,19 @@ package FSChunkProtocol;
 
 import java.net.DatagramPacket;
 import java.net.InetAddress;
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 
-public class PDU{
+public class PDU implements Packet{
     private int type;
     private InetAddress ip;
     private int port;
     private int transferId;
     private int checksum;
     private int offset;
-    private int packetId;
     private byte[] data;
 
-    public PDU() {
+    public PDU(){
         this.type = -1;
         try {
             this.ip = InetAddress.getLocalHost();
@@ -25,7 +25,6 @@ public class PDU{
         this.transferId = -1;
         this.checksum = -1;
         this.offset = -1;
-        this.packetId = -1;
         this.data = null;
     }
 
@@ -40,11 +39,10 @@ public class PDU{
         this.transferId = -1;
         this.checksum = -1;
         this.offset = -1;
-        this.packetId = -1;
         this.data = null;
     }
 
-    public PDU(int type, int packetId){
+    public PDU(int type, byte[] data){
         this.type = type;
         try {
             this.ip = InetAddress.getLocalHost();
@@ -55,22 +53,6 @@ public class PDU{
         this.transferId = -1;
         this.checksum = -1;
         this.offset = -1;
-        this.packetId = packetId;
-        this.data = null;
-    }
-
-    public PDU(int type, int packetId, byte[] data){
-        this.type = type;
-        try {
-            this.ip = InetAddress.getLocalHost();
-        } catch(Exception e){
-            e.printStackTrace();
-        }
-        this.port = -1;
-        this.transferId = -1;
-        this.checksum = -1;
-        this.offset = -1;
-        this.packetId = packetId;
         this.data = data;
     }
 
@@ -81,19 +63,23 @@ public class PDU{
         this.transferId = transferId;
         this.checksum = -1;
         this.offset = -1;
-        this.packetId = -1;
         this.data = null;
     }
 
-    public PDU(int type, InetAddress ip, int port, int transferId, int checksum, int offset, int packetId, byte[] data) {
+    public PDU(int type, InetAddress ip, int port, int transferId, int checksum, int offset, byte[] data) {
         this.type = type;
         this.ip = ip;
         this.port = port;
         this.transferId = transferId;
         this.checksum = checksum;
         this.offset = offset;
-        this.packetId = packetId;
         this.data = data;
+    }
+
+    private byte[] conversion(int x){
+        ByteBuffer bb = ByteBuffer.allocate(4);
+        bb.putInt(x);
+        return bb.array();
     }
 
     public int getType() {
@@ -136,14 +122,6 @@ public class PDU{
         this.offset = offset;
     }
 
-    public int getPacketId() {
-        return packetId;
-    }
-
-    public void setPacketId(int packetId) {
-        this.packetId = packetId;
-    }
-
     public byte[] getData() {
         return data;
     }
@@ -161,9 +139,51 @@ public class PDU{
         sb.append(", transferId=").append(transferId);
         sb.append(", checksum=").append(checksum);
         sb.append(", offset=").append(offset);
-        sb.append(", packetId=").append(packetId);
         sb.append(", data=").append(Arrays.toString(data));
         sb.append('}');
         return sb.toString();
+    }
+
+    @Override
+    public byte[] serialize(){
+        byte[] data = this.getData();
+        byte[] content;
+        if(data != null)
+            content = new byte[4 * 5 + data.length];
+        else
+            content = new byte[4 * 5];
+        byte[] type = conversion(this.getType());
+        byte[] transferId = conversion(this.getTransferId());
+        byte[] checksum = conversion(this.getChecksum());
+        byte[] offset = conversion(this.getOffset());
+
+        System.arraycopy(type,0,content,0,4);
+        System.arraycopy(transferId,0,content,4,4);
+        System.arraycopy(checksum,0,content,8,4);
+        System.arraycopy(offset,0,content,12,4);
+        if(data != null)
+            System.arraycopy(data,0,content,20,data.length);
+
+        return content;
+    }
+
+    @Override
+    public void desserialize(DatagramPacket p) {
+        byte[] content = p.getData();
+        int size = content.length;
+        this.type = ByteBuffer.wrap(content, 0, 4).getInt();
+        this.ip = p.getAddress();
+        this.port = p.getPort();
+        this.transferId = ByteBuffer.wrap(content, 4, 4).getInt();
+        this.checksum = ByteBuffer.wrap(content, 8, 4).getInt();
+        this.offset = ByteBuffer.wrap(content, 12, 4).getInt();
+
+        byte[] data = null;
+        if(size > (4 * 5)) {
+            int restSize = size - (4*5);
+            data = new byte[restSize];
+            System.arraycopy(content,4*5,data,0,restSize);
+        }
+        this.data = data;
     }
 }

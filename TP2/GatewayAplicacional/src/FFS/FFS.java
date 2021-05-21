@@ -3,6 +3,7 @@ package FFS;
 import FSChunkProtocol.FSChunkProtocol;
 import FSChunkProtocol.PDU;
 
+import java.io.File;
 import java.net.*;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -34,9 +35,19 @@ public class FFS {
         }).start();
 
         new Thread(() -> {
-            PDU p = FSChunkProtocol.receivePacket(s);
-            System.out.println(p);
+            while(true) {
+                PDU p = FSChunkProtocol.receivePacket(s);
+                System.out.println(p);
+                response(p);
+            }
         }).start();
+    }
+
+    public void response(PDU p){
+        File file = new File(new String(p.getData()));
+        if(file.exists()){
+            FSChunkProtocol.sendResponse(this.s,file);
+        }
     }
 
     public static void main(String[] args) {
