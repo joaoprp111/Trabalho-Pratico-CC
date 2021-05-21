@@ -20,7 +20,6 @@ public class HttpGw {
     private ServerSocket ss;
     private Map<String,Connection> connections; // Chave -> porta + "-" + ip
     private Lock l;
-    private final long _10e9 = 1000000000;
 
     public HttpGw() {
         try {
@@ -33,15 +32,45 @@ public class HttpGw {
         }
     }
 
-    private void manageServer(PDU p){
-        byte[] data = p.getData();
-        int size = data.length;
-        int port = ByteBuffer.wrap(data,0,4).getInt();
-        byte[] ipArr = new byte[size-4];
-        System.arraycopy(data,4,ipArr,0,size-4);
-        try {
-            InetAddress ip = InetAddress.getByAddress(ipArr);
+   public void requestFileData(String filename){
+        Collection<Connection> inactives = new ArrayList<>();
+        Collection<Connection> cs;
+        try{
+            l.lock();
+            cs = connections.values();
+        } finally {
+            l.unlock();
+        }
+            for(Connection c : cs){
+                double currentTime = (double) System.nanoTime() / 1000000000;
+                double connectionLastBeacon;
+                InetAddress destIp;
+                int destPort;
+                try {
+                    c.lock();
+                    connectionLastBeacon = c.getLastBeaconSeconds();
+                    destIp = c.getSourceIp();
+                    destPort = c.getSourcePort();
+                } finally {
+                    c.unlock();
+                }
+                if ((currentTime - connectionLastBeacon) > 7.5) {
+                    //Desconectou, temos de remover
+                    inactives.add(c);
+                } else {
+                    //Enviar o pedido
+                    FSChunkProtocol.sendMetaDataRequest(s,filename,destIp,destPort);
+                }
+            }
+    }
 
+    private void manageServer(PDU p){
+
+        int port = p.getPort();
+        InetAddress ip = p.getIp();
+        int id = p.getPacketId();
+        System.out.println("id do pacote recebido: " + id);
+        try {
             StringBuilder sb = new StringBuilder(String.valueOf(port));
             sb.append("-");
             sb.append(ip.toString());
@@ -54,7 +83,7 @@ public class HttpGw {
                     connections.put(key, conn);
                     System.out.println("> Gw: Servidor com a porta " + port + " e ip " + ip + " está conectado!");
                 } else {
-                    double nextBeaconSeconds = (double) System.nanoTime() / _10e9;
+                    double nextBeaconSeconds = (double) System.nanoTime() / 1000000000;
                     Connection c = connections.get(key);
                     try{
                         c.lock();
@@ -97,8 +126,11 @@ public class HttpGw {
                     BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 
                     String input;
-                    while((input = in.readLine()) != null)
-                        System.out.println(input);
+                    if((input = in.readLine()) != null) {
+                        String filename = (input.split(" ")[1]).split("/")[1];
+                        System.out.println("Ficheiro pedido: " + filename);
+                        requestFileData(filename);
+                    }
                 }
             } catch(IOException e){
                 e.printStackTrace();

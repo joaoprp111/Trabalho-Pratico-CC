@@ -1,6 +1,7 @@
 package FFS;
 
 import FSChunkProtocol.FSChunkProtocol;
+import FSChunkProtocol.PDU;
 
 import java.net.*;
 import java.nio.ByteBuffer;
@@ -32,7 +33,10 @@ public class FFS {
             FSChunkProtocol.sendBeacons(s,ip,destPort);
         }).start();
 
-        FSChunkProtocol.receivePacket(s);
+        new Thread(() -> {
+            PDU p = FSChunkProtocol.receivePacket(s);
+            System.out.println(p);
+        }).start();
     }
 
     public static void main(String[] args) {
