@@ -32,6 +32,13 @@ public class HttpGw {
 		}
 	}
 
+	private long byteToLong(byte[] bs){
+		ByteBuffer bb = ByteBuffer.allocate(Long.BYTES);
+		bb.put(bs);
+		bb.flip();
+		return bb.getLong();
+	}
+
    public void requestFileData(String filename){
 		Collection<Connection> inactives = new ArrayList<>();
 		Collection<Connection> cs;
@@ -105,6 +112,10 @@ public class HttpGw {
 				switch (type) {
 					case 1:
 						manageServer(p);
+						break;
+					case 3:
+						long fileSize = byteToLong(p.getData());
+						System.out.println(fileSize);
 						break;
 					default:
 						break;

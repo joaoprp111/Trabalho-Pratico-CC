@@ -49,7 +49,6 @@ public class FSChunkProtocol{
     }
 
     public static PDU receivePacket(DatagramSocket s){
-
         byte[] buffer = new byte[256];
         PDU p = new PDU();
 
@@ -67,7 +66,11 @@ public class FSChunkProtocol{
         return p;
     }
 
-    public static void sendResponse(DatagramSocket s, File file){
-
+    public static void sendResponse(DatagramSocket s, File file, InetAddress ip, int port){
+        PDU p = new PDU(3); // Resposta ao pedido do ficheiro
+        long fileSize = file.length();
+        p.setData(fileSize);
+        byte[] data = p.serialize();
+        sendPacket(s,data,ip,port);
     }
 }

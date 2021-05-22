@@ -82,6 +82,12 @@ public class PDU implements Packet{
         return bb.array();
     }
 
+    private byte[] conversionFromLong(long x){
+        ByteBuffer bb = ByteBuffer.allocate(Long.BYTES);
+        bb.putLong(x);
+        return bb.array();
+    }
+
     public int getType() {
         return type;
     }
@@ -128,6 +134,10 @@ public class PDU implements Packet{
 
     public void setData(byte[] data) {
         this.data = data;
+    }
+
+    public void setData(long data){
+        this.data = conversionFromLong(data);
     }
 
     @Override
