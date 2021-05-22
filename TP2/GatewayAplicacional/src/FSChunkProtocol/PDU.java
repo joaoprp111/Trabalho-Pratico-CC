@@ -159,9 +159,9 @@ public class PDU implements Packet{
         byte[] data = this.getData();
         byte[] content;
         if(data != null)
-            content = new byte[4 * 5 + data.length];
+            content = new byte[4 * 4 + data.length];
         else
-            content = new byte[4 * 5];
+            content = new byte[4 * 4];
         byte[] type = conversion(this.getType());
         byte[] transferId = conversion(this.getTransferId());
         byte[] checksum = conversion(this.getChecksum());
@@ -172,7 +172,7 @@ public class PDU implements Packet{
         System.arraycopy(checksum,0,content,8,4);
         System.arraycopy(offset,0,content,12,4);
         if(data != null)
-            System.arraycopy(data,0,content,20,data.length);
+            System.arraycopy(data,0,content,16,data.length);
 
         return content;
     }
@@ -189,10 +189,10 @@ public class PDU implements Packet{
         this.offset = ByteBuffer.wrap(content, 12, 4).getInt();
 
         byte[] data = null;
-        if(size > (4 * 5)) {
-            int restSize = size - (4*5);
+        if(size > (4 * 4)) {
+            int restSize = size - (4*4);
             data = new byte[restSize];
-            System.arraycopy(content,4*5,data,0,restSize);
+            System.arraycopy(content,4*4,data,0,restSize);
         }
         this.data = data;
     }

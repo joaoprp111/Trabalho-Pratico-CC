@@ -42,7 +42,6 @@ public class FSChunkProtocol{
 
             if(timeSeconds > 2.5) {
                 sendPacket(s,data,ip,destPort);
-                System.out.println("> FFS: Beacon enviada!");
                 lastTime = System.nanoTime();
             }
         }
@@ -56,7 +55,6 @@ public class FSChunkProtocol{
 
         try {
             s.receive(pckt);
-            System.out.println("> Gw: beacon recebida da porta " + pckt.getPort());
         } catch(IOException e){
             e.printStackTrace();
         }

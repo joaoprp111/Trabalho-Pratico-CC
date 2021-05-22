@@ -33,26 +33,25 @@ public class HttpGw {
 	}
 
 	private long byteToLong(byte[] bs){
-		ByteBuffer bb = ByteBuffer.allocate(Long.BYTES);
-		bb.put(bs);
-		bb.flip();
+		ByteBuffer bb = ByteBuffer.wrap(bs);
 		return bb.getLong();
 	}
 
    public void requestFileData(String filename){
-		Collection<Connection> inactives = new ArrayList<>();
-		Collection<Connection> cs;
+		Collection<String> inactives = new ArrayList<>();
+		Set<Map.Entry<String,Connection>> cs;
 		try{
 			l.lock();
-			cs = connections.values();
+			cs = connections.entrySet();
 		} finally {
 			l.unlock();
 		}
-			for(Connection c : cs){
+			for(Map.Entry<String,Connection> par: cs){
 				double currentTime = (double) System.nanoTime() / 1000000000;
 				double connectionLastBeacon;
 				InetAddress destIp;
 				int destPort;
+				Connection c = par.getValue();
 				try {
 					c.lock();
 					connectionLastBeacon = c.getLastBeaconSeconds();
@@ -63,10 +62,24 @@ public class HttpGw {
 				}
 				if ((currentTime - connectionLastBeacon) > 7.5) {
 					//Desconectou, temos de remover
-					inactives.add(c);
+					inactives.add(par.getKey());
+					System.out.println("Desconectou-se");
 				} else {
 					//Enviar o pedido
 					FSChunkProtocol.sendMetaDataRequest(s,filename,destIp,destPort);
+				}
+			}
+
+			for(Map.Entry<String,Connection> par : cs){
+				String k = par.getKey();
+				if(inactives.contains(k)) {
+					try{
+						l.lock();
+						connections.remove(k);
+						System.out.println("Conexao removida");
+					} finally {
+						l.unlock();
+					}
 				}
 			}
 	}
@@ -135,7 +148,6 @@ public class HttpGw {
 					String input;
 					if((input = in.readLine()) != null) {
 						String filename = (input.split(" ")[1]).split("/")[1];
-						System.out.println("Ficheiro pedido: " + filename);
 						requestFileData(filename);
 					}
 				}

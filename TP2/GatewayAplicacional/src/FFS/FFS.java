@@ -4,9 +4,11 @@ import FSChunkProtocol.FSChunkProtocol;
 import FSChunkProtocol.PDU;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.net.*;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.Scanner;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
@@ -28,9 +30,23 @@ public class FFS {
         }
     }
 
-    private String filesPath(String filename, String absolutPath){
+    private byte[] removeTrash(byte[] source){
+        byte[] dest;
+        int i = 0;
+        while(source[i] != 0){
+            i++;
+        }
+        dest = new byte[i];
+        System.arraycopy(source,0,dest,0,i);
+        return dest;
+    }
+
+    private String filePath(byte[] filename, String absolutPath){
+        byte[] cleanFilename = removeTrash(filename);
+        System.out.println(cleanFilename.length);
+        String cleanFilenameStr = new String(cleanFilename);
         StringBuilder sb = new StringBuilder(absolutPath);
-        sb.append(this.targetFilesDir).append(filename);
+        sb.append(this.targetFilesDir).append(cleanFilenameStr);
         return sb.toString();
     }
 
@@ -52,15 +68,14 @@ public class FFS {
 
     public void response(PDU p){
         String absolutPath = System.getProperty("user.dir");
-        String filename = new String(p.getData());
-        String path = filesPath(filename,absolutPath);
+        String path = filePath(p.getData(),absolutPath);
         File file = new File(path);
-        if(file.exists()){
+        try{
+            Scanner sc = new Scanner(file);
             System.out.println("O ficheiro " + path + " existe!");
             FSChunkProtocol.sendResponse(this.s,file,this.ip,this.destPort);
-        }
-        else{
-            System.out.println("O ficheiro " + path + " não existe!");
+        } catch(FileNotFoundException e){
+            System.out.println("Ficheiro não existe!");
         }
     }
 
