@@ -9,13 +9,33 @@ public class Connection {
     private InetAddress sourceIp;
     private int sourcePort;
     private double lastBeaconSeconds;
+    private String currentFileTransfer;
+    private long currentFileSize;
     private Lock l;
 
     public Connection(InetAddress ip, int port){
         sourceIp = ip;
         sourcePort = port;
         lastBeaconSeconds = (double) System.nanoTime() / 1000000000;
+        currentFileTransfer = "";
+        currentFileSize = -1;
         l = new ReentrantLock();
+    }
+
+    public String getCurrentFileTransfer() {
+        return currentFileTransfer;
+    }
+
+    public void setCurrentFileTransfer(String currentFileTransfer) {
+        this.currentFileTransfer = currentFileTransfer;
+    }
+
+    public long getCurrentFileSize() {
+        return currentFileSize;
+    }
+
+    public void setCurrentFileSize(long currentFileSize) {
+        this.currentFileSize = currentFileSize;
     }
 
     public InetAddress getSourceIp() {
@@ -55,11 +75,11 @@ public class Connection {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Connection that = (Connection) o;
-        return sourcePort == that.sourcePort && Objects.equals(sourceIp, that.sourceIp);
+        return sourcePort == that.sourcePort && Double.compare(that.lastBeaconSeconds, lastBeaconSeconds) == 0 && currentFileSize == that.currentFileSize && Objects.equals(sourceIp, that.sourceIp) && Objects.equals(currentFileTransfer, that.currentFileTransfer) && Objects.equals(l, that.l);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(sourceIp, sourcePort);
+        return Objects.hash(sourceIp, sourcePort, lastBeaconSeconds, currentFileTransfer, currentFileSize, l);
     }
 }

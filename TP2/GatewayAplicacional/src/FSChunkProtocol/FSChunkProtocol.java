@@ -14,6 +14,10 @@ import java.lang.String;
 
 public class FSChunkProtocol{
 
+    public static void sendTransferRequest(DatagramSocket s, String file, long offset, long chunkSize, InetAddress ip, int port, int transferId){
+
+    }
+
     public static void sendMetaDataRequest(DatagramSocket s,String file, InetAddress ip, int port){
         byte[] fileArr = file.getBytes();
         PDU p = new PDU(2,fileArr);

@@ -14,11 +14,13 @@ import java.rmi.UnknownHostException;
 import java.util.*;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.stream.Collectors;
 
 public class HttpGw {
 	private DatagramSocket s;
 	private ServerSocket ss;
 	private Map<String,Connection> connections; // Chave -> porta + "-" + ip
+	private int numTransfers;
 	private Lock l;
 
 	public HttpGw() {
@@ -27,6 +29,7 @@ public class HttpGw {
 			this.connections = new HashMap<>();
 			this.l = new ReentrantLock();
 			this.ss = new ServerSocket(8080);
+			this.numTransfers = 0;
 		} catch(Exception e){
 			e.printStackTrace();
 		}
@@ -83,6 +86,7 @@ public class HttpGw {
 				}
 			}
 	}
+
 	private void manageServer(PDU p){
 		int port = p.getPort();
 		InetAddress ip = p.getIp();
@@ -116,6 +120,81 @@ public class HttpGw {
 		}
 	}
 
+	public void waitForReplies(String filename){
+		int numServers, n = 0;
+		try {
+			l.lock();
+			numServers = connections.keySet().size();
+		} finally {
+			l.unlock();
+		}
+
+		while (n < (int) (0.7 * numServers)) {
+			PDU p = FSChunkProtocol.receivePacket(s);
+
+			int type = p.getType();
+			if (type == 3) {
+				long fileSize = byteToLong(p.getData());
+				String key = new StringBuilder(p.getPort()).append("-").append(p.getIp()).toString();
+				try{
+					l.lock();
+					Connection c = connections.get(key);
+					try{
+						c.lock();
+						c.setCurrentFileTransfer(filename);
+						c.setCurrentFileSize(fileSize);
+					} finally {
+						c.unlock();
+					}
+					connections.replace(key,c);
+				} finally {
+					l.unlock();
+				}
+			}
+			n++;
+		}
+	}
+
+	public void beginTransfer(String file){
+		Collection<Connection> cs;
+		long offset = 0;
+		try{
+			l.lock();
+			cs = connections.values().stream().filter(c -> (c.getCurrentFileTransfer().equals(file))).collect(Collectors.toCollection(ArrayList::new));
+		} finally {
+			l.unlock();
+		}
+		Iterator it = cs.iterator();
+		long fileSize;
+		if(it.hasNext()) {
+			Connection c = (Connection) it.next();
+			try{
+				c.lock();
+				fileSize = c.getCurrentFileSize();
+			} finally {
+				c.unlock();
+			}
+			long fragments = fileSize / cs.size();
+			long actualChunkSize = (fragments > 512) ? 512 : fragments;
+
+			while(offset <= fileSize) {
+				it = cs.iterator();
+				// Falta verificar se uma destas conexões já não existe
+
+				while (it.hasNext()) {
+					c = (Connection) it.next();
+					FSChunkProtocol.sendTransferRequest(s, file, offset, actualChunkSize, c.getSourceIp(), c.getSourcePort(), numTransfers);
+					offset += 1;
+					offset *= actualChunkSize;
+				}
+			}
+		}
+	}
+
+	public void receiveTransfer(String filename){
+
+	}
+
 	public void receiveFFS(){
 		new Thread(() -> {
 			while (true) {
@@ -125,10 +204,6 @@ public class HttpGw {
 				switch (type) {
 					case 1:
 						manageServer(p);
-						break;
-					case 3:
-						long fileSize = byteToLong(p.getData());
-						System.out.println(fileSize);
 						break;
 					default:
 						break;
@@ -149,6 +224,10 @@ public class HttpGw {
 					if((input = in.readLine()) != null) {
 						String filename = (input.split(" ")[1]).split("/")[1];
 						requestFileData(filename);
+						waitForReplies(filename);
+						beginTransfer(filename);
+						numTransfers++;
+						receiveTransfer(filename);
 					}
 				}
 			} catch(IOException e){
