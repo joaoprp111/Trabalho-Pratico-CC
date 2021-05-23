@@ -20,6 +20,7 @@ public class HttpGw {
 	private DatagramSocket s;
 	private ServerSocket ss;
 	private Map<String,Connection> connections; // Chave -> porta + "-" + ip
+	private Map<String,Long> files;
 	private int numTransfers;
 	private Lock l;
 
@@ -27,6 +28,7 @@ public class HttpGw {
 		try {
 			this.s = new DatagramSocket(8080);
 			this.connections = new HashMap<>();
+			this.files = new HashMap<>();
 			this.l = new ReentrantLock();
 			this.ss = new ServerSocket(8080);
 			this.numTransfers = 0;
@@ -215,8 +217,18 @@ public class HttpGw {
 		return true;
 	}*/
 
-	public void receiveTransfer(String filename){
+	public void manageFileAnswers(PDU p){
+		/*long filesSize = 0;
 
+		try{
+			l.lock();
+			filesSize = files.size();
+		} finally {
+			l.unlock();
+		}
+		if(filesSize == 0){
+			files.put
+		}*/
 	}
 
 	public void receiveFFS(){
@@ -233,6 +245,10 @@ public class HttpGw {
 					case 3:
 						// Receber respostas dos servidores acerca da existência do ficheiro
 						System.out.println("3");
+						byte[] data = p.getData();
+						long size = ByteBuffer.wrap(data,0,Long.BYTES).getLong();
+						System.out.println("Tamanho do ficheiro: " + size);
+						//manageFileAnswers(p);
 						break;
 					default:
 						break;

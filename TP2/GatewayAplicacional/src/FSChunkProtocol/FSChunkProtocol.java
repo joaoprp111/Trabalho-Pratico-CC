@@ -14,9 +14,6 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.lang.String;
 
 public class FSChunkProtocol{
-    private static boolean beacons = true;
-    private static Lock l = new ReentrantLock();
-    private static Condition c = l.newCondition();
 
     public static void sendTransferRequest(DatagramSocket s, String file, long offset, long chunkSize, InetAddress ip, int port, int transferId){
         byte[] offsetArr = PDU.conversionFromLong(offset);
@@ -81,24 +78,14 @@ public class FSChunkProtocol{
         return p;
     }
 
-    public static void sendResponse(DatagramSocket s, File file, InetAddress ip, int port){
-        try{
-            l.lock();
-            beacons = false;
-        } finally {
-            l.unlock();
-        }
+    public static void sendResponse(DatagramSocket s, File file, byte[] filename, InetAddress ip, int port){
         PDU p = new PDU(3); // Resposta ao pedido do ficheiro
-        long fileSize = file.length();
-        System.out.println("Tamanho do ficheiro -> " + fileSize);
-        p.setData(fileSize);
+        byte[] fileSize = PDU.conversionFromLong(file.length());
+        byte[] packetData = new byte[fileSize.length + filename.length];
+        System.arraycopy(fileSize,0,packetData,0,fileSize.length);
+        System.arraycopy(filename,0,packetData,fileSize.length,filename.length);
+        p.setData(packetData);
         byte[] data = p.serialize();
         sendPacket(s,data,ip,port);
-        try{
-            l.lock();
-            beacons = true;
-        } finally {
-            l.unlock();
-        }
     }
 }

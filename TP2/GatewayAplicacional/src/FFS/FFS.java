@@ -41,8 +41,7 @@ public class FFS {
         return dest;
     }
 
-    private String filePath(byte[] filename, String absolutPath){
-        byte[] cleanFilename = removeTrash(filename);
+    private String filePath(byte[] cleanFilename, String absolutPath){
         String cleanFilenameStr = new String(cleanFilename);
         StringBuilder sb = new StringBuilder(absolutPath);
         sb.append(this.targetFilesDir).append(cleanFilenameStr);
@@ -74,13 +73,14 @@ public class FFS {
     }
 
     public void response(PDU p){
+        byte[] filename = removeTrash(p.getData());
         String absolutPath = System.getProperty("user.dir");
-        String path = filePath(p.getData(),absolutPath);
+        String path = filePath(filename,absolutPath);
         File file = new File(path);
         try{
             Scanner sc = new Scanner(file);
             System.out.println("O ficheiro " + path + " existe!");
-            FSChunkProtocol.sendResponse(this.s,file,this.ip,this.destPort);
+            FSChunkProtocol.sendResponse(this.s,file,filename,this.ip,this.destPort);
         } catch(FileNotFoundException e){
             System.out.println("Ficheiro não existe!");
         }
