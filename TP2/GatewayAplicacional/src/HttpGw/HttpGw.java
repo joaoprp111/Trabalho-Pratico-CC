@@ -63,7 +63,7 @@ public class HttpGw {
 				} finally {
 					c.unlock();
 				}
-				if ((currentTime - connectionLastBeacon) > 7.5) {
+				if ((currentTime - connectionLastBeacon) > 30) {
 					//Desconectou, temos de remover
 					inactives.add(par.getKey());
 					System.out.println("Desconectou-se");
@@ -120,7 +120,7 @@ public class HttpGw {
 		}
 	}
 
-	public void waitForReplies(String filename){
+	/*public void waitForReplies(String filename){
 		int numServers, n = 0;
 		try {
 			l.lock();
@@ -132,11 +132,13 @@ public class HttpGw {
 		int serversToAsk = (int) (0.8 * numServers);
 		System.out.println("Num servidores utilizados na transferência: " + serversToAsk);
 
+		// Vamos esperar n respostas em relação ao ficheiro que queremos
 		while (n < serversToAsk) {
 			PDU p = FSChunkProtocol.receivePacket(s);
 
 			int type = p.getType();
 			if (type == 3) {
+				System.out.println("3");
 				long fileSize = byteToLong(p.getData());
 				String key = new StringBuilder(String.valueOf(p.getPort())).append("-").append(p.getIp()).toString();
 				try{
@@ -146,6 +148,7 @@ public class HttpGw {
 						c.lock();
 						c.setCurrentFileTransfer(filename);
 						c.setCurrentFileSize(fileSize);
+						System.out.println("Ficheiro atualizado na conexão");
 					} finally {
 						c.unlock();
 					}
@@ -153,51 +156,64 @@ public class HttpGw {
 				} finally {
 					l.unlock();
 				}
+				n++;
 			}
-			n++;
+			else if(type == 1){
+				System.out.println("1");
+			}
 		}
 		System.out.println("Respostas recebidas, pronto para começar a transferência!");
 	}
 
-	public void beginTransfer(String file){
+	public boolean beginTransfer(String file){
 		Collection<Connection> cs;
-		long offset = 0;
+		long offset = 0, fileSize = 1000000000; // Número grande para entrar pelo menos 1x no ciclo
 		try{
 			l.lock();
-			cs = connections.values().stream().filter(c -> (c.getCurrentFileTransfer().equals(file))).collect(Collectors.toCollection(ArrayList::new));
+			cs = connections.values().stream()
+					.filter(c -> (c.getCurrentFileTransfer().equals(file)))
+					.collect(Collectors.toCollection(ArrayList::new));
 		} finally {
 			l.unlock();
 		}
-		Iterator it = cs.iterator();
-		long fileSize;
-		if(it.hasNext()) {
-			System.out.println("it.hasnext com sucesso!");
-			Connection c = (Connection) it.next();
-			try{
-				c.lock();
-				fileSize = c.getCurrentFileSize();
-			} finally {
-				c.unlock();
-			}
-			System.out.println("Cs.size : " + cs.size());
-			long fragments = fileSize / cs.size();
-			long actualChunkSize = (fragments > 512) ? 512 : fragments;
-			System.out.println("Tamanho dos chunks a pedir: " + actualChunkSize);
+		System.out.println("Cs.size : " + cs.size());
+		long fragments = 0, actualChunkSize = 0;
+		int numMessages = 0;
+		if(cs.size() == 0)
+			return false;
 
-			while(offset <= fileSize) {
+		while(offset < fileSize){
+			for(Connection c : cs) {
+				if(offset == 0) {
+					try {
+						c.lock();
+						fileSize = c.getCurrentFileSize();
+						System.out.println("File Size : " +  fileSize);
+					} finally {
+						c.unlock();
+					}
+					fragments = fileSize / cs.size();
+					actualChunkSize = (fragments > 512) ? 512 : fragments;
+					System.out.println("Tamanho dos chunks a pedir: " + actualChunkSize);
+				}
+
 				System.out.println("Offset : " + offset);
-				it = cs.iterator();
+
 				// Falta verificar se uma destas conexões já não existe
 
-				while (it.hasNext()) {
-					c = (Connection) it.next();
+				try{
+					l.lock();
 					FSChunkProtocol.sendTransferRequest(s, file, offset, actualChunkSize, c.getSourceIp(), c.getSourcePort(), numTransfers);
-					offset += 1;
-					offset *= actualChunkSize;
+				} finally {
+					l.unlock();
 				}
+				numMessages++;
+				offset = numMessages * actualChunkSize;
 			}
 		}
-	}
+		System.out.println("Mensagens de pedido de transferÊncia terminaram");
+		return true;
+	}*/
 
 	public void receiveTransfer(String filename){
 
@@ -211,7 +227,12 @@ public class HttpGw {
 				int type = p.getType();
 				switch (type) {
 					case 1:
+						//System.out.println("..");
 						manageServer(p);
+						break;
+					case 3:
+						// Receber respostas dos servidores acerca da existência do ficheiro
+						System.out.println("3");
 						break;
 					default:
 						break;
@@ -232,10 +253,6 @@ public class HttpGw {
 					if((input = in.readLine()) != null) {
 						String filename = (input.split(" ")[1]).split("/")[1];
 						requestFileData(filename);
-						waitForReplies(filename);
-						beginTransfer(filename);
-						numTransfers++;
-						receiveTransfer(filename);
 					}
 				}
 			} catch(IOException e){

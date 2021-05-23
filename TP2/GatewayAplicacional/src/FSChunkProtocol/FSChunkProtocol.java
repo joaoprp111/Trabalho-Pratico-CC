@@ -8,11 +8,15 @@ import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.SocketException;
 import java.nio.ByteBuffer;
+import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.lang.String;
 
 public class FSChunkProtocol{
+    private static boolean beacons = true;
+    private static Lock l = new ReentrantLock();
+    private static Condition c = l.newCondition();
 
     public static void sendTransferRequest(DatagramSocket s, String file, long offset, long chunkSize, InetAddress ip, int port, int transferId){
         byte[] offsetArr = PDU.conversionFromLong(offset);
@@ -53,7 +57,7 @@ public class FSChunkProtocol{
             long elapsedTime = currentTime - lastTime;
             double timeSeconds = (double) elapsedTime / 1000000000;
 
-            if(timeSeconds > 2.5) {
+            if(timeSeconds > 10) {
                 sendPacket(s,data,ip,destPort);
                 lastTime = System.nanoTime();
             }
@@ -78,11 +82,23 @@ public class FSChunkProtocol{
     }
 
     public static void sendResponse(DatagramSocket s, File file, InetAddress ip, int port){
+        try{
+            l.lock();
+            beacons = false;
+        } finally {
+            l.unlock();
+        }
         PDU p = new PDU(3); // Resposta ao pedido do ficheiro
         long fileSize = file.length();
         System.out.println("Tamanho do ficheiro -> " + fileSize);
         p.setData(fileSize);
         byte[] data = p.serialize();
         sendPacket(s,data,ip,port);
+        try{
+            l.lock();
+            beacons = true;
+        } finally {
+            l.unlock();
+        }
     }
 }

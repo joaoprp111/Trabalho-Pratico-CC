@@ -53,7 +53,7 @@ public class FFS {
 
         //Criar uma thread para as beacons e outra para tratar os pedidos vindos do gateway
         new Thread(() -> {
-            FSChunkProtocol.sendBeacons(s,ip,destPort);
+            FSChunkProtocol.sendBeacons(s, ip, destPort);
         }).start();
 
         new Thread(() -> {
