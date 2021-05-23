@@ -129,13 +129,16 @@ public class HttpGw {
 			l.unlock();
 		}
 
-		while (n < (int) (0.7 * numServers)) {
+		int serversToAsk = (int) (0.8 * numServers);
+		System.out.println("Num servidores utilizados na transferência: " + serversToAsk);
+
+		while (n < serversToAsk) {
 			PDU p = FSChunkProtocol.receivePacket(s);
 
 			int type = p.getType();
 			if (type == 3) {
 				long fileSize = byteToLong(p.getData());
-				String key = new StringBuilder(p.getPort()).append("-").append(p.getIp()).toString();
+				String key = new StringBuilder(String.valueOf(p.getPort())).append("-").append(p.getIp()).toString();
 				try{
 					l.lock();
 					Connection c = connections.get(key);
@@ -153,6 +156,7 @@ public class HttpGw {
 			}
 			n++;
 		}
+		System.out.println("Respostas recebidas, pronto para começar a transferência!");
 	}
 
 	public void beginTransfer(String file){
@@ -167,6 +171,7 @@ public class HttpGw {
 		Iterator it = cs.iterator();
 		long fileSize;
 		if(it.hasNext()) {
+			System.out.println("it.hasnext com sucesso!");
 			Connection c = (Connection) it.next();
 			try{
 				c.lock();
@@ -174,10 +179,13 @@ public class HttpGw {
 			} finally {
 				c.unlock();
 			}
+			System.out.println("Cs.size : " + cs.size());
 			long fragments = fileSize / cs.size();
 			long actualChunkSize = (fragments > 512) ? 512 : fragments;
+			System.out.println("Tamanho dos chunks a pedir: " + actualChunkSize);
 
 			while(offset <= fileSize) {
+				System.out.println("Offset : " + offset);
 				it = cs.iterator();
 				// Falta verificar se uma destas conexões já não existe
 

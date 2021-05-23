@@ -43,7 +43,6 @@ public class FFS {
 
     private String filePath(byte[] filename, String absolutPath){
         byte[] cleanFilename = removeTrash(filename);
-        System.out.println(cleanFilename.length);
         String cleanFilenameStr = new String(cleanFilename);
         StringBuilder sb = new StringBuilder(absolutPath);
         sb.append(this.targetFilesDir).append(cleanFilenameStr);
@@ -60,8 +59,16 @@ public class FFS {
         new Thread(() -> {
             while(true) {
                 PDU p = FSChunkProtocol.receivePacket(s);
-                System.out.println(p);
-                response(p);
+                int type = p.getType();
+                switch(type){
+                    case 2:
+                        response(p);
+                        break;
+                    case 4:
+                        byte[] data = p.getData();
+                        System.out.println(data);
+                        break;
+                }
             }
         }).start();
     }

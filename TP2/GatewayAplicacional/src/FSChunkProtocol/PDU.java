@@ -56,6 +56,20 @@ public class PDU implements Packet{
         this.data = data;
     }
 
+    public PDU(int type, byte[] data, int transferId){
+        this.type = type;
+        try {
+            this.ip = InetAddress.getLocalHost();
+        } catch(Exception e){
+            e.printStackTrace();
+        }
+        this.port = -1;
+        this.transferId = transferId;
+        this.checksum = -1;
+        this.offset = -1;
+        this.data = data;
+    }
+
     public PDU(int type, InetAddress ip, int port, int transferId){
         this.type = type;
         this.ip = ip;
@@ -76,13 +90,13 @@ public class PDU implements Packet{
         this.data = data;
     }
 
-    private byte[] conversion(int x){
+    public static byte[] conversion(int x){
         ByteBuffer bb = ByteBuffer.allocate(4);
         bb.putInt(x);
         return bb.array();
     }
 
-    private byte[] conversionFromLong(long x){
+    public static byte[] conversionFromLong(long x){
         ByteBuffer bb = ByteBuffer.allocate(Long.BYTES);
         bb.putLong(x);
         return bb.array();

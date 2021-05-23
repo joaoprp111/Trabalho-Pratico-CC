@@ -15,7 +15,16 @@ import java.lang.String;
 public class FSChunkProtocol{
 
     public static void sendTransferRequest(DatagramSocket s, String file, long offset, long chunkSize, InetAddress ip, int port, int transferId){
-
+        byte[] offsetArr = PDU.conversionFromLong(offset);
+        byte[] fileArr = file.getBytes();
+        byte[] chunk = PDU.conversionFromLong(chunkSize);
+        byte[] finalData = new byte[offsetArr.length + fileArr.length + chunk.length];
+        System.arraycopy(offsetArr,0,finalData,0,offsetArr.length);
+        System.arraycopy(chunk,0,finalData,offsetArr.length,chunk.length);
+        System.arraycopy(fileArr,0,finalData,offsetArr.length + chunk.length, fileArr.length);
+        PDU p = new PDU(4,finalData,transferId);
+        byte[] packetData = p.serialize();
+        sendPacket(s,packetData,ip,port);
     }
 
     public static void sendMetaDataRequest(DatagramSocket s,String file, InetAddress ip, int port){
@@ -71,6 +80,7 @@ public class FSChunkProtocol{
     public static void sendResponse(DatagramSocket s, File file, InetAddress ip, int port){
         PDU p = new PDU(3); // Resposta ao pedido do ficheiro
         long fileSize = file.length();
+        System.out.println("Tamanho do ficheiro -> " + fileSize);
         p.setData(fileSize);
         byte[] data = p.serialize();
         sendPacket(s,data,ip,port);
