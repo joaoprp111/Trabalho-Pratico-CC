@@ -37,6 +37,17 @@ public class HttpGw {
 		}
 	}
 
+	private byte[] removeTrash(byte[] source){
+		byte[] dest;
+		int i = 0;
+		while(source[i] != 0){
+			i++;
+		}
+		dest = new byte[i];
+		System.arraycopy(source,0,dest,0,i);
+		return dest;
+	}
+
 	private long byteToLong(byte[] bs){
 		ByteBuffer bb = ByteBuffer.wrap(bs);
 		return bb.getLong();
@@ -246,8 +257,13 @@ public class HttpGw {
 						// Receber respostas dos servidores acerca da existência do ficheiro
 						System.out.println("3");
 						byte[] data = p.getData();
+						int datasize = data.length;
 						long size = ByteBuffer.wrap(data,0,Long.BYTES).getLong();
-						System.out.println("Tamanho do ficheiro: " + size);
+						byte[] filename = new byte[datasize - Long.BYTES];
+						System.arraycopy(data,Long.BYTES,filename,0,datasize-Long.BYTES);
+						filename = removeTrash(filename);
+						String file = new String(filename);
+						System.out.println("Tamanho do ficheiro: " + size + " ficheiro -> " + file);
 						//manageFileAnswers(p);
 						break;
 					default:
