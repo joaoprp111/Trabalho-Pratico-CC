@@ -79,7 +79,7 @@ public class HttpGw {
 		   if ((currentTime - connectionLastBeacon) > 30) {
 			   //Desconectou, temos de remover
 			   inactives.add(par.getKey());
-			   System.out.println("Desconectou-se");
+			   System.out.println("O servidor com ip e porta " + par.getKey() + " desconectou-se.");
 		   } else {
 			   //Enviar o pedido
 			   FSChunkProtocol.sendMetaDataRequest(s,filename,destIp,destPort);
@@ -92,7 +92,6 @@ public class HttpGw {
 			   try{
 				   l.lock();
 				   connections.remove(k);
-				   System.out.println("Conexao removida");
 			   } finally {
 				   l.unlock();
 			   }
@@ -134,6 +133,7 @@ public class HttpGw {
 	}
 
 	public void manageFileAnswers(PDU p){
+
 		// Descodificar a mensagem
 		byte[] data = p.getData();
 		long fileSize = ByteBuffer.wrap(data,0,Long.BYTES).getLong();
@@ -156,7 +156,6 @@ public class HttpGw {
 			c.setCurrentFileTransfer(filename);
 			c.setCurrentFileSize(fileSize);
 			File f = files.get(filename);
-			System.out.println(filename);
 			f.setSize((int)fileSize);
 			files.replace(filename,f);
 		} finally {
@@ -203,7 +202,6 @@ public class HttpGw {
 					case 5:
 					    // Receber transferências de chunks
                         manageTransfers(p);
-						System.out.println("Recebi chunks");
 					default:
 						break;
 				}
@@ -236,7 +234,6 @@ public class HttpGw {
 				c.lock();
 				FSChunkProtocol.sendTransferRequest(s, c.getCurrentFileTransfer(), offset, chunkSize,
 						c.getSourceIp(), c.getSourcePort(),transferId);
-				System.out.println("Offset: " + offset + " | Tamanho do chunk:" + chunkSize);
 			} finally {
 				c.unlock();
 			}
@@ -277,47 +274,68 @@ public class HttpGw {
 					String input;
 					if((input = in.readLine()) != null) {
 						String filename = (input.split(" ")[1]).split("/")[1];
-						requestFileData(filename);
-						try {
-							sleep(5000);
-						} catch(Exception e){
-							e.printStackTrace();
+						boolean transferCompleted = false;
+						double requestTime = (double) System.nanoTime() / 1000000000;
+						double currentTime = (double) System.nanoTime() / 1000000000;
+						while(!transferCompleted && (currentTime - requestTime) < 30) {
+							requestFileData(filename);
+							try {
+								sleep(5000);
+							} catch (Exception e) {
+								e.printStackTrace();
+							}
+							if (!transfer(filename, numTransfers)) {
+								out.println("HTTP/1.1 404 File Not Found");
+								out.println("Server: Java HTTP Server from HttpGw");
+								out.println("Date: " + new Date());
+								out.println("Content-type: " + filename);
+								out.println("Content-length: " + 0);
+								out.println();
+								out.flush();
+							} else {
+								try {
+									sleep(5000);
+								} catch (Exception e) {
+									e.printStackTrace();
+								}
+								try {
+									l.lock();
+									File f = files.get(filename);
+									if (f.getBytesWritten() == f.getSize()) {
+										transferCompleted = true;
+										System.out.println("Transferência do ficheiro " + filename + " completa");
+										out.println("HTTP/1.1 200 OK");
+										out.println("Server: Java HTTP Server from HttpGw");
+										out.println("Date: " + new Date());
+										out.println("Content-type: " + filename);
+										out.println("Content-length: " + f.getSize());
+										out.println();
+										out.flush();
+
+										dataOut.write(f.getFileRebuild(), 0, f.getSize());
+										dataOut.flush();
+
+										numTransfers++;
+										socket.shutdownOutput();
+										socket.shutdownInput();
+										socket.close();
+									}
+								} finally {
+									l.unlock();
+								}
+							}
+							currentTime = (double) System.nanoTime() / 1000000000;
 						}
-						if(!transfer(filename,numTransfers)){
-							out.println("HTTP/1.1 404 File Not Found");
+						if(!transferCompleted) {
+							System.out.println("O tempo de espera acabou.");
+							out.println("HTTP/1.1 509 Couldn't transfer file");
 							out.println("Server: Java HTTP Server from HttpGw");
 							out.println("Date: " + new Date());
 							out.println("Content-type: " + filename);
 							out.println("Content-length: " + 0);
 							out.println();
 							out.flush();
-						}else {
-						    try {
-                                sleep(5000);
-                            } catch(Exception e){
-						        e.printStackTrace();
-                            }
-                            try {
-                                l.lock();
-                                File f = files.get(filename);
-                                if(f.getBytesWritten() == f.getSize()){
-                                    System.out.println("Transferência completa");
-									out.println("HTTP/1.1 200 OK");
-									out.println("Server: Java HTTP Server from HttpGw");
-									out.println("Date: " + new Date());
-									out.println("Content-type: " + filename);
-									out.println("Content-length: " + f.getSize());
-									out.println();
-									out.flush();
-
-									dataOut.write(f.getFileRebuild(),0,f.getSize());
-									dataOut.flush();
-                                }
-                                numTransfers++;
-                            } finally {
-                                l.unlock();
-                            }
-                        }
+						}
 					}
 				}
 			} catch(IOException e){

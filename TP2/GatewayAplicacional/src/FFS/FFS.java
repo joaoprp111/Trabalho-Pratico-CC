@@ -77,25 +77,20 @@ public class FFS {
         byte[] filename = removeTrash(p.getData());
         String absolutPath = System.getProperty("user.dir");
         String path = filePath(filename,absolutPath);
-	System.out.println("Caminho do ficheiro: " + path);
         File file = new File(path);
         try{
             Scanner sc = new Scanner(file);
-            System.out.println("O ficheiro " + path + " existe!");
             FSChunkProtocol.sendResponse(this.s,file,filename,this.ip,this.destPort);
         } catch(FileNotFoundException e){
-            System.out.println("Ficheiro não existe!");
         }
     }
 
     public byte[] readFromFile(String path,int offset, int size){
         byte[] content = new byte[size];
-        int numBytesRead = 0;
         try {
             RandomAccessFile f = new RandomAccessFile(path,"r");
             f.seek(offset);
-            numBytesRead = f.read(content,0,size);
-            System.out.println("Bytes read: " + numBytesRead);
+            f.read(content,0,size);
         } catch(Exception e){
             e.printStackTrace();
         }
@@ -114,16 +109,11 @@ public class FFS {
         byte[] filename = new byte[data.length - (2* Long.BYTES)];
         System.arraycopy(data,2*Long.BYTES,filename,0,data.length-(2*Long.BYTES));
         filename = removeTrash(filename);
-        String file = new String(filename);
-        System.out.println("Offset: " + offset +
-                " | Chunk: " + chunk + " | Filename: " + file);
 
         // Ler o chunk do ficheiro
         String absolutPath = System.getProperty("user.dir");
         String path = filePath(filename,absolutPath);
         byte[] chunkBytes = readFromFile(path,(int)offset,(int)chunk);
-        String fileData = new String(chunkBytes);
-        System.out.println("Conteudo: " + fileData);
 
         // Enviar os dados -> offset, tamanho do chunk, chunk e nome do ficheiro
         FSChunkProtocol.sendChunkPacket(this.s,offsetArr,chunkArr,chunkBytes,filename,this.ip,this.destPort);
