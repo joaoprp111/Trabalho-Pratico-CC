@@ -1,6 +1,7 @@
 package HttpGw;
 
 import java.net.InetAddress;
+import java.util.Arrays;
 import java.util.Objects;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -70,29 +71,4 @@ public class Connection {
         l.unlock();
     }
 
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        Connection that = (Connection) o;
-        return sourcePort == that.sourcePort && Double.compare(that.lastBeaconSeconds, lastBeaconSeconds) == 0 && currentFileSize == that.currentFileSize && Objects.equals(sourceIp, that.sourceIp) && Objects.equals(currentFileTransfer, that.currentFileTransfer) && Objects.equals(l, that.l);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(sourceIp, sourcePort, lastBeaconSeconds, currentFileTransfer, currentFileSize, l);
-    }
-
-    @Override
-    public String toString() {
-        final StringBuilder sb = new StringBuilder("Connection{");
-        sb.append("sourceIp=").append(sourceIp);
-        sb.append(", sourcePort=").append(sourcePort);
-        sb.append(", lastBeaconSeconds=").append(lastBeaconSeconds);
-        sb.append(", currentFileTransfer='").append(currentFileTransfer).append('\'');
-        sb.append(", currentFileSize=").append(currentFileSize);
-        sb.append(", l=").append(l);
-        sb.append('}');
-        return sb.toString();
-    }
 }

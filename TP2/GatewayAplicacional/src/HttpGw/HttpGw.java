@@ -22,6 +22,7 @@ public class HttpGw {
 	private DatagramSocket s;
 	private ServerSocket ss;
 	private Map<String,Connection> connections; // Chave -> porta + "-" + ip
+    private Map<String,File> files;
 	private int numTransfers;
 	private Lock l;
 
@@ -32,6 +33,7 @@ public class HttpGw {
 			this.l = new ReentrantLock();
 			this.ss = new ServerSocket(8080);
 			this.numTransfers = 0;
+			this.files = new HashMap<>();
 		} catch(Exception e){
 			e.printStackTrace();
 		}
@@ -59,6 +61,7 @@ public class HttpGw {
 		try{
 			l.lock();
 			cs = connections.entrySet();
+            files.put(filename,new File(null,0,-1));
 		} finally {
 			l.unlock();
 		}
@@ -155,10 +158,35 @@ public class HttpGw {
 			c = connections.get(key);
 			c.setCurrentFileTransfer(filename);
 			c.setCurrentFileSize(fileSize);
+			File f = files.get(filename);
+			System.out.println(filename);
+			f.setSize((int)fileSize);
+			files.replace(filename,f);
 		} finally {
 			l.unlock();
 		}
 	}
+
+	public void manageTransfers(PDU p){
+	    byte[] allData = p.getData();
+	    long offset = ByteBuffer.wrap(allData,0,Long.BYTES).getLong();
+	    long chunkSize = ByteBuffer.wrap(allData,Long.BYTES,Long.BYTES).getLong();
+	    byte[] chunk = new byte[(int)chunkSize];
+	    byte[] filename = new byte[allData.length - (2*Long.BYTES + chunk.length)];
+	    System.arraycopy(allData,Long.BYTES * 2,chunk,0,chunk.length);
+	    Collection<Connection> cs;
+	    System.arraycopy(allData,(Long.BYTES * 2)+(int)chunkSize,filename,0,allData.length - (2*Long.BYTES + chunk.length));
+	    filename = removeTrash(filename);
+	    String filenameStr = new String(filename);
+
+	    try{
+	        l.lock();
+	        File f = files.get(filenameStr);
+	        f.writeInArray(offset,chunk.length,chunk);
+        } finally {
+	        l.unlock();
+        }
+    }
 
 	public void receiveFFS(){
 		new Thread(() -> {
@@ -176,6 +204,8 @@ public class HttpGw {
 						manageFileAnswers(p);
 						break;
 					case 5:
+					    // Receber transferências de chunks
+                        manageTransfers(p);
 						System.out.println("Recebi chunks");
 					default:
 						break;
@@ -184,7 +214,7 @@ public class HttpGw {
 		}).start();
 	}
 
-	public void requestChunks(int servers, Collection<Connection> cs, int transferId){
+	public void requestChunks(int servers, Collection<Connection> cs, int transferId, String filename){
 		int requests = 0;
 		long fileSize = 1000000000; // Começar com um nº grande para entrar no ciclo
 		long offset = 0, chunkSize = 0;
@@ -204,15 +234,17 @@ public class HttpGw {
 				chunkSize = (fileSize / servers) > 512 ? 512 : (fileSize / servers);
 			}
 			try {
+			    if(offset + chunkSize > fileSize)
+			        chunkSize = fileSize - offset;
 				c.lock();
 				FSChunkProtocol.sendTransferRequest(s, c.getCurrentFileTransfer(), offset, chunkSize,
 						c.getSourceIp(), c.getSourcePort(),transferId);
-				System.out.println("Offset: " + offset + " | Tamanho do ficheiro: " + fileSize);
+				System.out.println("Offset: " + offset + " | Tamanho do chunk:" + chunkSize);
 			} finally {
 				c.unlock();
 			}
 			requests++;
-			offset = requests * chunkSize;
+			offset += chunkSize;
 		}
 	}
 
@@ -230,7 +262,7 @@ public class HttpGw {
 		if(size == 0)
 			return false;
 		else {
-			requestChunks(size, availableConnections, transferId);
+			requestChunks(size, availableConnections, transferId, filename);
 			return true;
 		}
 	}
@@ -254,13 +286,25 @@ public class HttpGw {
 						}
 						if(!transfer(filename,numTransfers)){
 							// Informar o cliente de que ninguém tem o ficheiro
-						}
-						try{
-							l.lock();
-							numTransfers++;
-						} finally {
-							l.unlock();
-						}
+						}else {
+						    try {
+                                sleep(5000);
+                            } catch(Exception e){
+						        e.printStackTrace();
+                            }
+                            try {
+                                l.lock();
+                                File f = files.get(filename);
+                                if(f.getBytesWritten() == f.getSize()){
+                                    System.out.println("Transferência completa");
+                                    String ficheiro = new String(f.getFileRebuild());
+                                    System.out.println(ficheiro);
+                                }
+                                numTransfers++;
+                            } finally {
+                                l.unlock();
+                            }
+                        }
 					}
 				}
 			} catch(IOException e){

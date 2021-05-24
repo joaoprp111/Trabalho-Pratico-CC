@@ -63,7 +63,7 @@ public class FSChunkProtocol{
     }
 
     public static PDU receivePacket(DatagramSocket s){
-        byte[] buffer = new byte[256];
+        byte[] buffer = new byte[2048];
         PDU p = new PDU();
 
         DatagramPacket pckt = new DatagramPacket(buffer,buffer.length);
