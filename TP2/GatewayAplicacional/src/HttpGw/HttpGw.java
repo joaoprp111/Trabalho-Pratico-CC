@@ -175,6 +175,8 @@ public class HttpGw {
 						// Receber respostas dos servidores acerca da existência do ficheiro
 						manageFileAnswers(p);
 						break;
+					case 5:
+						System.out.println("Recebi chunks");
 					default:
 						break;
 				}

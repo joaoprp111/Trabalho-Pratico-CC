@@ -1,5 +1,6 @@
 package FSChunkProtocol;
 
+import javax.xml.crypto.Data;
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
@@ -87,5 +88,18 @@ public class FSChunkProtocol{
         p.setData(packetData);
         byte[] data = p.serialize();
         sendPacket(s,data,ip,port);
+    }
+
+    public static void sendChunkPacket(DatagramSocket s, byte[] offset, byte[] chunkSize, byte[] chunk, byte[] filename, InetAddress ip, int port){
+        PDU p = new PDU(5); // Transferência de um chunk
+        byte[] data = new byte[offset.length + chunkSize.length + chunk.length + filename.length];
+        System.arraycopy(offset,0,data,0,offset.length);
+        System.arraycopy(chunkSize,0,data,offset.length,chunkSize.length);
+        System.arraycopy(chunk,0,data,offset.length + chunkSize.length,chunk.length);
+        System.arraycopy(filename,0,data,offset.length + chunkSize.length + chunk.length,filename.length);
+
+        p.setData(data);
+        byte[] allPacketData = p.serialize();
+        sendPacket(s,allPacketData,ip,port);
     }
 }

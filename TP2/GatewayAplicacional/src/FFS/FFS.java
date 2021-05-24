@@ -4,7 +4,9 @@ import FSChunkProtocol.FSChunkProtocol;
 import FSChunkProtocol.PDU;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.RandomAccessFile;
 import java.net.*;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -85,8 +87,27 @@ public class FFS {
         }
     }
 
+    public byte[] readFromFile(String path,int offset, int size){
+        byte[] content = new byte[size];
+        int numBytesRead = 0;
+        try {
+            RandomAccessFile f = new RandomAccessFile(path,"r");
+            f.seek(offset);
+            numBytesRead = f.read(content,0,size);
+            System.out.println("Bytes read: " + numBytesRead);
+        } catch(Exception e){
+            e.printStackTrace();
+        }
+        return content;
+    }
+
     public void sendChunk(PDU p){
+        // Obter a informação necessária
         byte[] data = p.getData();
+        byte[] offsetArr = new byte[Long.BYTES];
+        System.arraycopy(data,0,offsetArr,0,Long.BYTES);
+        byte[] chunkArr = new byte[Long.BYTES];
+        System.arraycopy(data,Long.BYTES,chunkArr,0,Long.BYTES);
         long offset = ByteBuffer.wrap(data,0,Long.BYTES).getLong();
         long chunk = ByteBuffer.wrap(data,Long.BYTES,Long.BYTES).getLong();
         byte[] filename = new byte[data.length - (2* Long.BYTES)];
@@ -95,6 +116,16 @@ public class FFS {
         String file = new String(filename);
         System.out.println("Offset: " + offset +
                 " | Chunk: " + chunk + " | Filename: " + file);
+
+        // Ler o chunk do ficheiro
+        String absolutPath = System.getProperty("user.dir");
+        String path = filePath(filename,absolutPath);
+        byte[] chunkBytes = readFromFile(path,(int)offset,(int)chunk);
+        String fileData = new String(chunkBytes);
+        System.out.println("Conteudo: " + fileData);
+
+        // Enviar os dados -> offset, tamanho do chunk, chunk e nome do ficheiro
+        FSChunkProtocol.sendChunkPacket(this.s,offsetArr,chunkArr,chunkBytes,filename,this.ip,this.destPort);
     }
 
     public static void main(String[] args) {
