@@ -16,11 +16,16 @@ public class PDU implements Packet{
 
     public PDU(){
         this.type = -1;
-	try{
-       		this.ip = InetAddress.getByName("10.1.1.1");
-	} catch(Exception e){
-		e.printStackTrace();
-	}
+	    try{
+	        this.ip = InetAddress.getLocalHost();
+	    } catch(Exception e){
+	        System.out.println("Couldn't get local host ip, changing to 10.1.1.1");
+	        try {
+                this.ip = InetAddress.getByName("10.1.1.1");
+            } catch(Exception e2){
+	            e2.printStackTrace();
+            }
+	    }
         this.port = -1;
         this.transferId = -1;
         this.checksum = -1;
@@ -30,10 +35,15 @@ public class PDU implements Packet{
 
     public PDU(int type){
         this.type = type;
-	try{
-                this.ip = InetAddress.getByName("10.1.1.1");
+        try{
+            this.ip = InetAddress.getLocalHost();
         } catch(Exception e){
-                e.printStackTrace();
+            System.out.println("Couldn't get local host ip, changing to 10.1.1.1");
+            try {
+                this.ip = InetAddress.getByName("10.1.1.1");
+            } catch(Exception e2){
+                e2.printStackTrace();
+            }
         }
         this.port = -1;
         this.transferId = -1;
@@ -44,10 +54,15 @@ public class PDU implements Packet{
 
     public PDU(int type, byte[] data){
         this.type = type;
-	try{
-                this.ip = InetAddress.getByName("10.1.1.1");
+        try{
+            this.ip = InetAddress.getLocalHost();
         } catch(Exception e){
-                e.printStackTrace();
+            System.out.println("Couldn't get local host ip, changing to 10.1.1.1");
+            try {
+                this.ip = InetAddress.getByName("10.1.1.1");
+            } catch(Exception e2){
+                e2.printStackTrace();
+            }
         }
         this.port = -1;
         this.transferId = -1;
@@ -58,10 +73,15 @@ public class PDU implements Packet{
 
     public PDU(int type, byte[] data, int transferId){
         this.type = type;
-	try{
-                this.ip = InetAddress.getByName("10.1.1.1");
+        try{
+            this.ip = InetAddress.getLocalHost();
         } catch(Exception e){
-                e.printStackTrace();
+            System.out.println("Couldn't get local host ip, changing to 10.1.1.1");
+            try {
+                this.ip = InetAddress.getByName("10.1.1.1");
+            } catch(Exception e2){
+                e2.printStackTrace();
+            }
         }
         this.port = -1;
         this.transferId = transferId;

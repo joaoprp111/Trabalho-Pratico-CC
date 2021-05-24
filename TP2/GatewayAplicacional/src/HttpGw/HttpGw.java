@@ -3,10 +3,7 @@ package HttpGw;
 import FSChunkProtocol.FSChunkProtocol;
 import FSChunkProtocol.PDU;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.UnsupportedEncodingException;
+import java.io.*;
 import java.net.*;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -274,6 +271,8 @@ public class HttpGw {
 				while (true) {
 					Socket socket = ss.accept();
 					BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+					PrintWriter out = new PrintWriter(socket.getOutputStream());
+					BufferedOutputStream dataOut = new BufferedOutputStream(socket.getOutputStream());
 
 					String input;
 					if((input = in.readLine()) != null) {
@@ -285,7 +284,13 @@ public class HttpGw {
 							e.printStackTrace();
 						}
 						if(!transfer(filename,numTransfers)){
-							// Informar o cliente de que ninguém tem o ficheiro
+							out.println("HTTP/1.1 404 File Not Found");
+							out.println("Server: Java HTTP Server from HttpGw");
+							out.println("Date: " + new Date());
+							out.println("Content-type: " + filename);
+							out.println("Content-length: " + 0);
+							out.println();
+							out.flush();
 						}else {
 						    try {
                                 sleep(5000);
@@ -297,8 +302,16 @@ public class HttpGw {
                                 File f = files.get(filename);
                                 if(f.getBytesWritten() == f.getSize()){
                                     System.out.println("Transferência completa");
-                                    String ficheiro = new String(f.getFileRebuild());
-                                    System.out.println(ficheiro);
+									out.println("HTTP/1.1 200 OK");
+									out.println("Server: Java HTTP Server from HttpGw");
+									out.println("Date: " + new Date());
+									out.println("Content-type: " + filename);
+									out.println("Content-length: " + f.getSize());
+									out.println();
+									out.flush();
+
+									dataOut.write(f.getFileRebuild(),0,f.getSize());
+									dataOut.flush();
                                 }
                                 numTransfers++;
                             } finally {
@@ -321,7 +334,17 @@ public class HttpGw {
 
 	public static void main(String[] args){
 		HttpGw gw = new HttpGw();
-		System.out.println("Ativo em 10.1.1.1 na porta 8080");
+		InetAddress ip = null;
+		try{
+		    ip = InetAddress.getLocalHost();
+        } catch(Exception e){
+		    try{
+		        ip = InetAddress.getByName("10.1.1.1");
+            } catch(Exception e2){
+		        e2.printStackTrace();
+            }
+        }
+		System.out.println("Ativo em " + ip.toString() + " na porta 8080");
 
 		gw.runGateway();
 	}
