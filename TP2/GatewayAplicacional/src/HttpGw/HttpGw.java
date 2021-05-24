@@ -16,11 +16,12 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
+import static java.lang.Thread.sleep;
+
 public class HttpGw {
 	private DatagramSocket s;
 	private ServerSocket ss;
 	private Map<String,Connection> connections; // Chave -> porta + "-" + ip
-	private Map<String,Long> files;
 	private int numTransfers;
 	private Lock l;
 
@@ -28,7 +29,6 @@ public class HttpGw {
 		try {
 			this.s = new DatagramSocket(8080);
 			this.connections = new HashMap<>();
-			this.files = new HashMap<>();
 			this.l = new ReentrantLock();
 			this.ss = new ServerSocket(8080);
 			this.numTransfers = 0;
@@ -62,42 +62,42 @@ public class HttpGw {
 		} finally {
 			l.unlock();
 		}
-			for(Map.Entry<String,Connection> par: cs){
-				double currentTime = (double) System.nanoTime() / 1000000000;
-				double connectionLastBeacon;
-				InetAddress destIp;
-				int destPort;
-				Connection c = par.getValue();
-				try {
-					c.lock();
-					connectionLastBeacon = c.getLastBeaconSeconds();
-					destIp = c.getSourceIp();
-					destPort = c.getSourcePort();
-				} finally {
-					c.unlock();
-				}
-				if ((currentTime - connectionLastBeacon) > 30) {
-					//Desconectou, temos de remover
-					inactives.add(par.getKey());
-					System.out.println("Desconectou-se");
-				} else {
-					//Enviar o pedido
-					FSChunkProtocol.sendMetaDataRequest(s,filename,destIp,destPort);
-				}
-			}
+	    for(Map.Entry<String,Connection> par: cs){
+		   double currentTime = (double) System.nanoTime() / 1000000000;
+		   double connectionLastBeacon;
+		   InetAddress destIp;
+		   int destPort;
+		   Connection c = par.getValue();
+		   try {
+			   c.lock();
+			   connectionLastBeacon = c.getLastBeaconSeconds();
+			   destIp = c.getSourceIp();
+			   destPort = c.getSourcePort();
+		   } finally {
+			   c.unlock();
+		   }
+		   if ((currentTime - connectionLastBeacon) > 30) {
+			   //Desconectou, temos de remover
+			   inactives.add(par.getKey());
+			   System.out.println("Desconectou-se");
+		   } else {
+			   //Enviar o pedido
+			   FSChunkProtocol.sendMetaDataRequest(s,filename,destIp,destPort);
+		   }
+	    }
 
-			for(Map.Entry<String,Connection> par : cs){
-				String k = par.getKey();
-				if(inactives.contains(k)) {
-					try{
-						l.lock();
-						connections.remove(k);
-						System.out.println("Conexao removida");
-					} finally {
-						l.unlock();
-					}
-				}
-			}
+	    for(Map.Entry<String,Connection> par : cs){
+		   String k = par.getKey();
+		   if(inactives.contains(k)) {
+			   try{
+				   l.lock();
+				   connections.remove(k);
+				   System.out.println("Conexao removida");
+			   } finally {
+				   l.unlock();
+			   }
+		   }
+	    }
 	}
 
 	private void manageServer(PDU p){
@@ -133,113 +133,31 @@ public class HttpGw {
 		}
 	}
 
-	/*public void waitForReplies(String filename){
-		int numServers, n = 0;
-		try {
-			l.lock();
-			numServers = connections.keySet().size();
-		} finally {
-			l.unlock();
-		}
-
-		int serversToAsk = (int) (0.8 * numServers);
-		System.out.println("Num servidores utilizados na transferência: " + serversToAsk);
-
-		// Vamos esperar n respostas em relação ao ficheiro que queremos
-		while (n < serversToAsk) {
-			PDU p = FSChunkProtocol.receivePacket(s);
-
-			int type = p.getType();
-			if (type == 3) {
-				System.out.println("3");
-				long fileSize = byteToLong(p.getData());
-				String key = new StringBuilder(String.valueOf(p.getPort())).append("-").append(p.getIp()).toString();
-				try{
-					l.lock();
-					Connection c = connections.get(key);
-					try{
-						c.lock();
-						c.setCurrentFileTransfer(filename);
-						c.setCurrentFileSize(fileSize);
-						System.out.println("Ficheiro atualizado na conexão");
-					} finally {
-						c.unlock();
-					}
-					connections.replace(key,c);
-				} finally {
-					l.unlock();
-				}
-				n++;
-			}
-			else if(type == 1){
-				System.out.println("1");
-			}
-		}
-		System.out.println("Respostas recebidas, pronto para começar a transferência!");
-	}
-
-	public boolean beginTransfer(String file){
-		Collection<Connection> cs;
-		long offset = 0, fileSize = 1000000000; // Número grande para entrar pelo menos 1x no ciclo
-		try{
-			l.lock();
-			cs = connections.values().stream()
-					.filter(c -> (c.getCurrentFileTransfer().equals(file)))
-					.collect(Collectors.toCollection(ArrayList::new));
-		} finally {
-			l.unlock();
-		}
-		System.out.println("Cs.size : " + cs.size());
-		long fragments = 0, actualChunkSize = 0;
-		int numMessages = 0;
-		if(cs.size() == 0)
-			return false;
-
-		while(offset < fileSize){
-			for(Connection c : cs) {
-				if(offset == 0) {
-					try {
-						c.lock();
-						fileSize = c.getCurrentFileSize();
-						System.out.println("File Size : " +  fileSize);
-					} finally {
-						c.unlock();
-					}
-					fragments = fileSize / cs.size();
-					actualChunkSize = (fragments > 512) ? 512 : fragments;
-					System.out.println("Tamanho dos chunks a pedir: " + actualChunkSize);
-				}
-
-				System.out.println("Offset : " + offset);
-
-				// Falta verificar se uma destas conexões já não existe
-
-				try{
-					l.lock();
-					FSChunkProtocol.sendTransferRequest(s, file, offset, actualChunkSize, c.getSourceIp(), c.getSourcePort(), numTransfers);
-				} finally {
-					l.unlock();
-				}
-				numMessages++;
-				offset = numMessages * actualChunkSize;
-			}
-		}
-		System.out.println("Mensagens de pedido de transferÊncia terminaram");
-		return true;
-	}*/
-
 	public void manageFileAnswers(PDU p){
-		/*long filesSize = 0;
+		// Descodificar a mensagem
+		byte[] data = p.getData();
+		long fileSize = ByteBuffer.wrap(data,0,Long.BYTES).getLong();
+		byte[] fileArr = new byte[data.length - Long.BYTES];
+		System.arraycopy(data,Long.BYTES,fileArr,0,data.length-Long.BYTES);
+		fileArr = removeTrash(fileArr);
+		String filename = new String(fileArr);
+		InetAddress ip = p.getIp();
+		int port = p.getPort();
 
+		// Alterar a informação da conexão
+		StringBuilder sb = new StringBuilder(String.valueOf(port));
+		sb.append("-");
+		sb.append(ip.toString());
+		String key = sb.toString();
+		Connection c;
 		try{
 			l.lock();
-			filesSize = files.size();
+			c = connections.get(key);
+			c.setCurrentFileTransfer(filename);
+			c.setCurrentFileSize(fileSize);
 		} finally {
 			l.unlock();
 		}
-		if(filesSize == 0){
-			files.put
-		}*/
 	}
 
 	public void receiveFFS(){
@@ -255,22 +173,64 @@ public class HttpGw {
 						break;
 					case 3:
 						// Receber respostas dos servidores acerca da existência do ficheiro
-						System.out.println("3");
-						byte[] data = p.getData();
-						int datasize = data.length;
-						long size = ByteBuffer.wrap(data,0,Long.BYTES).getLong();
-						byte[] filename = new byte[datasize - Long.BYTES];
-						System.arraycopy(data,Long.BYTES,filename,0,datasize-Long.BYTES);
-						filename = removeTrash(filename);
-						String file = new String(filename);
-						System.out.println("Tamanho do ficheiro: " + size + " ficheiro -> " + file);
-						//manageFileAnswers(p);
+						manageFileAnswers(p);
 						break;
 					default:
 						break;
 				}
 			}
 		}).start();
+	}
+
+	public void requestChunks(int servers, Collection<Connection> cs, int transferId){
+		int requests = 0;
+		long fileSize = 1000000000; // Começar com um nº grande para entrar no ciclo
+		long offset = 0, chunkSize = 0;
+		Iterator<Connection> it = cs.iterator();
+		while(offset < fileSize){
+			if(!it.hasNext()){
+				it = cs.iterator();
+			}
+			Connection c = it.next();
+			if(requests == 0){
+				try{
+					c.lock();
+					fileSize = c.getCurrentFileSize();
+				} finally {
+					c.unlock();
+				}
+				chunkSize = (fileSize / servers) > 512 ? 512 : (fileSize / servers);
+			}
+			try {
+				c.lock();
+				FSChunkProtocol.sendTransferRequest(s, c.getCurrentFileTransfer(), offset, chunkSize,
+						c.getSourceIp(), c.getSourcePort(),transferId);
+				System.out.println("Offset: " + offset + " | Tamanho do ficheiro: " + fileSize);
+			} finally {
+				c.unlock();
+			}
+			requests++;
+			offset = requests * chunkSize;
+		}
+	}
+
+	public boolean transfer(String filename, int transferId){
+		Collection<Connection> availableConnections;
+		try{
+			l.lock();
+			availableConnections = connections.values().stream()
+					.filter(c -> c.getCurrentFileTransfer().equals(filename))
+					.collect(Collectors.toCollection(ArrayList::new));
+		} finally {
+			l.unlock();
+		}
+		int size = availableConnections.size();
+		if(size == 0)
+			return false;
+		else {
+			requestChunks(size, availableConnections, transferId);
+			return true;
+		}
 	}
 
 	public void receiveClients(){
@@ -285,6 +245,20 @@ public class HttpGw {
 					if((input = in.readLine()) != null) {
 						String filename = (input.split(" ")[1]).split("/")[1];
 						requestFileData(filename);
+						try {
+							sleep(5000);
+						} catch(Exception e){
+							e.printStackTrace();
+						}
+						if(!transfer(filename,numTransfers)){
+							// Informar o cliente de que ninguém tem o ficheiro
+						}
+						try{
+							l.lock();
+							numTransfers++;
+						} finally {
+							l.unlock();
+						}
 					}
 				}
 			} catch(IOException e){

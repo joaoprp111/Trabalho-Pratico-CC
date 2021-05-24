@@ -82,4 +82,17 @@ public class Connection {
     public int hashCode() {
         return Objects.hash(sourceIp, sourcePort, lastBeaconSeconds, currentFileTransfer, currentFileSize, l);
     }
+
+    @Override
+    public String toString() {
+        final StringBuilder sb = new StringBuilder("Connection{");
+        sb.append("sourceIp=").append(sourceIp);
+        sb.append(", sourcePort=").append(sourcePort);
+        sb.append(", lastBeaconSeconds=").append(lastBeaconSeconds);
+        sb.append(", currentFileTransfer='").append(currentFileTransfer).append('\'');
+        sb.append(", currentFileSize=").append(currentFileSize);
+        sb.append(", l=").append(l);
+        sb.append('}');
+        return sb.toString();
+    }
 }

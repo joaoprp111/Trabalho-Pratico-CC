@@ -64,8 +64,7 @@ public class FFS {
                         response(p);
                         break;
                     case 4:
-                        byte[] data = p.getData();
-                        System.out.println(data);
+                        sendChunk(p);
                         break;
                 }
             }
@@ -84,6 +83,18 @@ public class FFS {
         } catch(FileNotFoundException e){
             System.out.println("Ficheiro não existe!");
         }
+    }
+
+    public void sendChunk(PDU p){
+        byte[] data = p.getData();
+        long offset = ByteBuffer.wrap(data,0,Long.BYTES).getLong();
+        long chunk = ByteBuffer.wrap(data,Long.BYTES,Long.BYTES).getLong();
+        byte[] filename = new byte[data.length - (2* Long.BYTES)];
+        System.arraycopy(data,2*Long.BYTES,filename,0,data.length-(2*Long.BYTES));
+        filename = removeTrash(filename);
+        String file = new String(filename);
+        System.out.println("Offset: " + offset +
+                " | Chunk: " + chunk + " | Filename: " + file);
     }
 
     public static void main(String[] args) {
