@@ -22,11 +22,11 @@ public class FFS {
     private int destPort;
     private final String targetFilesDir = "/files/";
 
-    public FFS(){
+    public FFS(String gatewayIp, String gatewayPort){
         try{
             s = new DatagramSocket();
-            ip = InetAddress.getLocalHost();
-            destPort = 8080;
+            ip = InetAddress.getByName(gatewayIp);
+            destPort = Integer.parseInt(gatewayPort);
         } catch(Exception e){
             e.printStackTrace();
         }
@@ -129,7 +129,7 @@ public class FFS {
     }
 
     public static void main(String[] args) {
-        FFS ffs = new FFS();
+        FFS ffs = new FFS(args[0],args[1]);
 
         ffs.runServer();
     }

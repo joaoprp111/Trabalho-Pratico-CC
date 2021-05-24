@@ -321,6 +321,7 @@ public class HttpGw {
 
 	public static void main(String[] args){
 		HttpGw gw = new HttpGw();
+		System.out.println("Ativo em 10.1.1.1 na porta 8080");
 
 		gw.runGateway();
 	}
