@@ -98,6 +98,7 @@ public class FFS {
         byte[] filename = removeTrash(p.getData());
         String absolutPath = System.getProperty("user.dir");
         String path = filePath(filename,absolutPath);
+        System.out.println(path);
         File file = new File(path);
         try{
             Scanner sc = new Scanner(file);

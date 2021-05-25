@@ -116,9 +116,14 @@ public class HttpGw {
      * @param p Pacote do tipo 1 (beacon)
      */
 	private void manageServer(PDU p){
-		int port = p.getPort();
-		InetAddress ip = p.getIp();
+		byte[] data = p.getData();
+		int port = ByteBuffer.wrap(data,0,4).getInt();
+		int ipSize = ByteBuffer.wrap(data,4,4).getInt();
+		byte[] ipArr = new byte[ipSize];
+		System.arraycopy(data,8,ipArr,0,ipSize);
+
 		try {
+			InetAddress ip = InetAddress.getByAddress(ipArr);
 			StringBuilder sb = new StringBuilder(String.valueOf(port));
 			sb.append("-");
 			sb.append(ip.toString());
@@ -156,30 +161,37 @@ public class HttpGw {
 
 		// Descodificar a mensagem
 		byte[] data = p.getData();
-		long fileSize = ByteBuffer.wrap(data,0,Long.BYTES).getLong();
-		byte[] fileArr = new byte[data.length - Long.BYTES];
-		System.arraycopy(data,Long.BYTES,fileArr,0,data.length-Long.BYTES);
+		int port = ByteBuffer.wrap(data,0,4).getInt();
+		int ipSize = ByteBuffer.wrap(data,4,4).getInt();
+		byte[] ipArr = new byte[ipSize];
+		System.arraycopy(data,8,ipArr,0,ipSize);
+		long fileSize = ByteBuffer.wrap(data,8 + ipSize,Long.BYTES).getLong();
+		byte[] fileArr = new byte[data.length - (8 + ipSize + Long.BYTES)];
+		System.arraycopy(data,8 + ipSize + Long.BYTES,fileArr,0,data.length - (8 + ipSize + Long.BYTES));
 		fileArr = removeTrash(fileArr);
 		String filename = new String(fileArr);
-		InetAddress ip = p.getIp();
-		int port = p.getPort();
 
 		// Alterar a informação da conexão
-		StringBuilder sb = new StringBuilder(String.valueOf(port));
-		sb.append("-");
-		sb.append(ip.toString());
-		String key = sb.toString();
-		Connection c;
-		try{
-			l.lock();
-			c = connections.get(key);
-			c.setCurrentFileTransfer(filename);
-			c.setCurrentFileSize(fileSize);
-			File f = files.get(filename);
-			f.setSize((int)fileSize);
-			files.replace(filename,f);
-		} finally {
-			l.unlock();
+		try {
+			InetAddress ip = InetAddress.getByAddress(ipArr);
+			StringBuilder sb = new StringBuilder(String.valueOf(port));
+			sb.append("-");
+			sb.append(ip.toString());
+			String key = sb.toString();
+			Connection c;
+			try {
+				l.lock();
+				c = connections.get(key);
+				c.setCurrentFileTransfer(filename);
+				c.setCurrentFileSize(fileSize);
+				File f = files.get(filename);
+				f.setSize((int) fileSize);
+				files.replace(filename, f);
+			} finally {
+				l.unlock();
+			}
+		} catch(Exception e){
+			e.printStackTrace();
 		}
 	}
 
