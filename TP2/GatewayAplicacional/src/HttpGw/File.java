@@ -1,9 +1,10 @@
 package HttpGw;
 
+// Classe responsável por armazenar informações de um ficheiro
 public class File {
-    private byte[] fileRebuild;
-    private int bytesWritten;
-    private int size;
+    private byte[] fileRebuild; // Byte array que será usado para reconstruir o ficheiro, para depois enviar ao cliente
+    private int bytesWritten; // Número de bytes já escritos no fileRebuild até ao momento
+    private int size; // Tamanho total de bytes que o ficheiro original ocupa
 
     public File(byte[] fileRebuild, int bytesWritten, int size) {
         this.fileRebuild = fileRebuild;

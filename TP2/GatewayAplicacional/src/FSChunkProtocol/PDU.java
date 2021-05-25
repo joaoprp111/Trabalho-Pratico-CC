@@ -6,11 +6,11 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 
 public class PDU implements Packet{
-    private int type;
-    private InetAddress ip;
-    private int port;
-    private int transferId;
-    private byte[] data;
+    private int type; // Tipo do pacote
+    private InetAddress ip; // IP do pacote
+    private int port; // Porta
+    private int transferId; // Id da transferência
+    private byte[] data; // Payload (pode ter até 4096 bytes)
 
     public PDU(){
         this.type = -1;
@@ -80,22 +80,6 @@ public class PDU implements Packet{
         this.data = data;
     }
 
-    public PDU(int type, InetAddress ip, int port, int transferId){
-        this.type = type;
-        this.ip = ip;
-        this.port = port;
-        this.transferId = transferId;
-        this.data = null;
-    }
-
-    public PDU(int type, InetAddress ip, int port, int transferId, byte[] data) {
-        this.type = type;
-        this.ip = ip;
-        this.port = port;
-        this.transferId = transferId;
-        this.data = data;
-    }
-
     public static byte[] conversion(int x){
         ByteBuffer bb = ByteBuffer.allocate(4);
         bb.putInt(x);
@@ -156,6 +140,10 @@ public class PDU implements Packet{
         return sb.toString();
     }
 
+    /**
+     * Serialização do pacote
+     * @return Array com a informação toda do pacote em bytes
+     */
     @Override
     public byte[] serialize(){
         byte[] data = this.getData();
@@ -175,6 +163,10 @@ public class PDU implements Packet{
         return content;
     }
 
+    /**
+     * Deserialização do pacote
+     * @param p DatagramPacket com os dados recebidos na transmissão UDP
+     */
     @Override
     public void desserialize(DatagramPacket p) {
         byte[] content = p.getData();
