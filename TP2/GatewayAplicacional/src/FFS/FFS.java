@@ -82,6 +82,7 @@ public class FFS {
             Scanner sc = new Scanner(file);
             FSChunkProtocol.sendResponse(this.s,file,filename,this.ip,this.destPort);
         } catch(FileNotFoundException e){
+            System.out.println("O ficheiro não existe!");
         }
     }
 
