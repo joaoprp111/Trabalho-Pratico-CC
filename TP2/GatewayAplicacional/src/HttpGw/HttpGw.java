@@ -328,9 +328,8 @@ public class HttpGw {
 						double currentTime = (double) System.nanoTime() / 1000000000;
 						// O gateway pede retransmissão caso não consiga completar a transferência no primeiro pedido
                         // Este pedido é feito em ciclo até a transferência ser efetuada
-                        // ou o tempo de espera exceder 60 segundos
-                        // Dividir o ficheiro por 1024 e meter o tempo de espera proporcional
-						while(!transferCompleted && (currentTime - requestTime) < 60) {
+                        // ou o tempo de espera exceder 120 segundos
+						while(!transferCompleted && (currentTime - requestTime) < 120) {
 						    // Pedir metadados
 							requestFileData(filename);
 

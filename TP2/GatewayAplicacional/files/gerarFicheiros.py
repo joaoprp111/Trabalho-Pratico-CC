@@ -19,7 +19,6 @@ def gerar4():
     for i in range(0,30000):
         print("ficheiro muito grande")
 
-
 if tipo == 1:
     gerar1()
 elif tipo == 2:
