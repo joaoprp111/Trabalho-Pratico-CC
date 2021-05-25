@@ -97,17 +97,17 @@ public class HttpGw {
 	    }
 
 	    // Percorrer os servidores novamente e remover os que já deixaram de mandar beacons há mais de 30 segundos
+       try{
+           l.lock();
 	    for(Map.Entry<String,Connection> par : cs){
 		   String k = par.getKey();
 		   if(inactives.contains(k)) {
-			   try{
-				   l.lock();
 				   connections.remove(k);
-			   } finally {
-				   l.unlock();
-			   }
 		   }
 	    }
+       } finally {
+           l.unlock();
+       }
 	}
 
     /**
@@ -328,8 +328,9 @@ public class HttpGw {
 						double currentTime = (double) System.nanoTime() / 1000000000;
 						// O gateway pede retransmissão caso não consiga completar a transferência no primeiro pedido
                         // Este pedido é feito em ciclo até a transferência ser efetuada
-                        // ou o tempo de espera exceder 30 segundos
-						while(!transferCompleted && (currentTime - requestTime) < 30) {
+                        // ou o tempo de espera exceder 60 segundos
+                        // Dividir o ficheiro por 1024 e meter o tempo de espera proporcional
+						while(!transferCompleted && (currentTime - requestTime) < 60) {
 						    // Pedir metadados
 							requestFileData(filename);
 
